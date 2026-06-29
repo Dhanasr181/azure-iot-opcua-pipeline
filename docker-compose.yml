@@ -1,0 +1,54 @@
+services:
+  cert-extractor:
+    build: .
+    container_name: cert-thumbprint-extractor
+    command: /bin/bash /root/scripts/extract_thumbprint.sh
+    volumes:
+      - ./certs:/certs
+    networks:
+      - opc-network
+
+  mqtt-publisher:
+    build: .
+    container_name: opc-x509-publisher
+    command: /bin/sh -c "/root/scripts/generate_certs.sh && /usr/local/bin/tutorial_pubsub_mqtt_publish"
+    restart: unless-stopped
+    volumes:
+      - ./certs:/certs
+    environment:
+      - LD_LIBRARY_PATH=/usr/local/lib
+      - TZ=UTC
+      - IOT_HUB_NAME=${IOT_HUB_NAME}
+      - IOT_DEVICE_ID=${IOT_DEVICE_ID}
+    networks:
+      - opc-network
+
+  cert-extractor-sub:
+    build: .
+    container_name: cert-thumbprint-extractor-sub
+    command: /bin/bash /root/scripts/extract_thumbprint.sh
+    volumes:
+      - ./certs-sub:/certs
+    networks:
+      - opc-network
+
+  mqtt-subscriber:
+    build: .
+    container_name: opc-x509-subscriber
+    command: /bin/sh -c "/root/scripts/generate_certs.sh && sleep 3 && /usr/local/bin/tutorial_pubsub_mqtt_subscribe"
+    restart: unless-stopped
+    volumes:
+      - ./certs-sub:/certs
+    environment:
+      - LD_LIBRARY_PATH=/usr/local/lib
+      - TZ=UTC
+      - AZURE_IOT_HUB_NAME=${IOT_HUB_NAME}
+      - AZURE_DEVICE_ID=device2-sub
+      - IOT_DEVICE_ID=device2-sub
+    networks:
+      - opc-network
+
+
+networks:
+  opc-network:
+    driver: bridge
